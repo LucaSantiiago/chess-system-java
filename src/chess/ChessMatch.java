@@ -2,6 +2,7 @@ package chess;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import boardgame.Board;
 import boardgame.Piece;
@@ -14,6 +15,8 @@ public class ChessMatch {
 	private int turn;
 	private Color currentPlayer;
 	private Board board;
+	private boolean check;
+
 	private List<Piece> piecesOnTheBoard = new ArrayList<>();
 	private List<Piece> capturedPieces = new ArrayList<>();
 
@@ -21,6 +24,7 @@ public class ChessMatch {
 		board = new Board(8, 8);
 		turn = 1;
 		currentPlayer = Color.WHITE;
+
 		initialSetup();
 	}
 
@@ -63,7 +67,7 @@ public class ChessMatch {
 		Piece p = board.removePiece(source);
 		Piece capturedPiece = board.removePiece(target);
 		board.PlacePiece(p, target);
-		
+
 		if (capturedPiece != null) {
 			piecesOnTheBoard.remove(capturedPiece);
 			capturedPieces.add(capturedPiece);
@@ -71,11 +75,22 @@ public class ChessMatch {
 		return capturedPiece;
 	}
 
+	private void undoMove(Position source, Position target, Piece capturedPiece) {
+		Piece p = board.removePiece(target);
+		board.PlacePiece(p, source);
+
+		if (capturedPiece != null) {
+			board.PlacePiece(capturedPiece, target);
+			capturedPieces.remove(capturedPiece);
+			piecesOnTheBoard.add(capturedPiece);
+		}
+	}
+
 	private void validateSourcePosition(Position position) {
 		if (!board.thereIsAPiece(position)) {
 			throw new ChessException("There is no piece on source position");
 		}
-		if (currentPlayer != ((ChessPiece)board.piece(position)).getColor()) {
+		if (currentPlayer != ((ChessPiece) board.piece(position)).getColor()) {
 			throw new ChessException("There chosen piece is not yours");
 		}
 		if (!board.piece(position).isThereAnyPossibleMove()) {
@@ -88,10 +103,26 @@ public class ChessMatch {
 			throw new ChessException("The chosen piece can't move to target position");
 		}
 	}
-	
+
 	private void nextTurn() {
 		turn++;
 		currentPlayer = (currentPlayer == Color.WHITE) ? Color.BLACK : Color.WHITE;
+	}
+
+	private Color opponent(Color color) {
+		return (color == Color.WHITE) ? Color.BLACK : Color.WHITE;
+	}
+
+	private ChessPiece king(Color color) {
+		List<Piece> List = piecesOnTheBoard.stream().filter(x -> ((ChessPiece)x).getColor() == color)
+				.collect(Collectors.toList());
+		
+		for (Piece p : List) {
+			if(p instanceof King) {
+				return(ChessPiece)p;
+			}
+		}
+		throw new IllegalStateException("There is no " + color + "King on the board");
 	}
 
 	private void placeNewPiece(char column, int row, ChessPiece piece) {
